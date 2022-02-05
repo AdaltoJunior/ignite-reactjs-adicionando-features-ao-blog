@@ -1,11 +1,12 @@
 import { GetStaticPaths, GetStaticProps } from 'next';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
+import Link from 'next/link';
 
 import Prismic from '@prismicio/client';
 import { RichText } from 'prismic-dom';
 
-import { format } from 'date-fns';
+import { format, compareAsc } from 'date-fns';
 import ptBR from 'date-fns/locale/pt-BR';
 
 import { FiCalendar, FiUser, FiClock } from 'react-icons/fi';
@@ -19,6 +20,8 @@ import styles from './post.module.scss';
 
 interface Post {
   first_publication_date: string | null;
+  last_publication_date: string | null;
+  uid: string;
   data: {
     title: string;
     banner: {
@@ -36,9 +39,17 @@ interface Post {
 
 interface PostProps {
   post: Post;
+  nextPost: Post | null;
+  prevPost: Post | null;
+  wasEdited: boolean;
 }
 
-export default function Post({ post }: PostProps): JSX.Element {
+export default function Post({
+  post,
+  prevPost,
+  nextPost,
+  wasEdited,
+}: PostProps): JSX.Element {
   const { isFallback } = useRouter();
 
   if (isFallback) {
@@ -88,6 +99,17 @@ export default function Post({ post }: PostProps): JSX.Element {
                 <FiClock size={20} /> {readingTime} min
               </div>
             </div>
+            {wasEdited && (
+              <time className={styles.editedInfo}>
+                {format(
+                  new Date(post.last_publication_date),
+                  "'* editado em' dd MMM yyyy, 'às' HH:mm",
+                  {
+                    locale: ptBR,
+                  }
+                )}
+              </time>
+            )}
           </div>
         </header>
         {post.data.content.map(content => (
@@ -105,6 +127,30 @@ export default function Post({ post }: PostProps): JSX.Element {
           </section>
         ))}
       </article>
+
+      <footer className={styles.pageFooter}>
+        <div className={commonStyles.container}>
+          <hr />
+          <div className={styles.postNavigationContainer}>
+            {prevPost && (
+              <Link href={`/post/${prevPost.uid}`}>
+                <a>
+                  {prevPost.data.title}
+                  <span>Post anterior</span>
+                </a>
+              </Link>
+            )}
+            {nextPost && (
+              <Link href={`/post/${nextPost.uid}`}>
+                <a>
+                  {nextPost.data.title}
+                  <span>Próximo post</span>
+                </a>
+              </Link>
+            )}
+          </div>
+        </div>
+      </footer>
     </>
   );
 }
@@ -138,9 +184,43 @@ export const getStaticProps: GetStaticProps = async ({ params }) => {
   const prismic = getPrismicClient();
   const response = await prismic.getByUID('posts', String(slug), {});
 
+  const nextPost = await prismic.query(
+    [
+      Prismic.Predicates.dateAfter(
+        'document.first_publication_date',
+        response.first_publication_date
+      ),
+    ],
+    {
+      pageSize: 1,
+      orderings: '[document.first_publication_date]',
+    }
+  );
+
+  const prevPost = await prismic.query(
+    [
+      Prismic.Predicates.dateBefore(
+        'document.first_publication_date',
+        response.first_publication_date
+      ),
+    ],
+    {
+      pageSize: 1,
+      orderings: '[document.first_publication_date desc]',
+    }
+  );
+
+  const wasEdited = !!compareAsc(
+    new Date(response.last_publication_date),
+    new Date(response.first_publication_date)
+  );
+
   return {
     props: {
       post: response,
+      nextPost: nextPost?.results[0] || null,
+      prevPost: prevPost?.results[0] || null,
+      wasEdited,
     },
     revalidate: 60 * 5, // 5 minutes
   };
