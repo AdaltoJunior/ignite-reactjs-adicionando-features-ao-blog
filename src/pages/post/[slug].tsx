@@ -12,6 +12,7 @@ import ptBR from 'date-fns/locale/pt-BR';
 import { FiCalendar, FiUser, FiClock } from 'react-icons/fi';
 
 import Header from '../../components/Header';
+import { Comments } from '../../components/Comments';
 
 import { getPrismicClient } from '../../services/prismic';
 
@@ -131,6 +132,7 @@ export default function Post({
       <footer className={styles.pageFooter}>
         <div className={commonStyles.container}>
           <hr />
+
           <div className={styles.postNavigationContainer}>
             {prevPost && (
               <Link href={`/post/${prevPost.uid}`}>
@@ -149,6 +151,8 @@ export default function Post({
               </Link>
             )}
           </div>
+
+          <Comments />
         </div>
       </footer>
     </>
