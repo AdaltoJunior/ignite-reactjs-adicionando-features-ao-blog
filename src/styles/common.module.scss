@@ -4,3 +4,21 @@
   margin: 0 auto;
   padding: 0 30px;
 }
+
+.previewButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  min-height: 3.75rem;
+  margin-top: 5rem;
+
+  color: var(--background);
+  font-size: 1.125rem;
+  font-weight: bold;
+  text-align: center;
+
+  background: var(--heading);
+  border-radius: 4px;
+  padding: 0.5rem;
+}

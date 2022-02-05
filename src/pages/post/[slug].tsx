@@ -13,6 +13,7 @@ import { FiCalendar, FiUser, FiClock } from 'react-icons/fi';
 
 import Header from '../../components/Header';
 import { Comments } from '../../components/Comments';
+import { PreviewButton } from '../../components/PreviewButton';
 
 import { getPrismicClient } from '../../services/prismic';
 
@@ -43,6 +44,7 @@ interface PostProps {
   nextPost: Post | null;
   prevPost: Post | null;
   wasEdited: boolean;
+  preview: boolean;
 }
 
 export default function Post({
@@ -50,6 +52,7 @@ export default function Post({
   prevPost,
   nextPost,
   wasEdited,
+  preview,
 }: PostProps): JSX.Element {
   const { isFallback } = useRouter();
 
@@ -153,6 +156,8 @@ export default function Post({
           </div>
 
           <Comments />
+
+          {preview && <PreviewButton />}
         </div>
       </footer>
     </>
@@ -183,33 +188,31 @@ export const getStaticPaths: GetStaticPaths = async () => {
   };
 };
 
-export const getStaticProps: GetStaticProps = async ({ params }) => {
+export const getStaticProps: GetStaticProps = async ({
+  params,
+  preview = false,
+  previewData,
+}) => {
   const { slug } = params;
   const prismic = getPrismicClient();
-  const response = await prismic.getByUID('posts', String(slug), {});
+  const response = await prismic.getByUID('posts', String(slug), {
+    ref: previewData?.ref ?? null,
+  });
 
   const nextPost = await prismic.query(
-    [
-      Prismic.Predicates.dateAfter(
-        'document.first_publication_date',
-        response.first_publication_date
-      ),
-    ],
+    [Prismic.Predicates.at('document.type', 'posts')],
     {
       pageSize: 1,
+      after: `${response.id}`,
       orderings: '[document.first_publication_date]',
     }
   );
 
   const prevPost = await prismic.query(
-    [
-      Prismic.Predicates.dateBefore(
-        'document.first_publication_date',
-        response.first_publication_date
-      ),
-    ],
+    [Prismic.Predicates.at('document.type', 'posts')],
     {
       pageSize: 1,
+      after: `${response.id}`,
       orderings: '[document.first_publication_date desc]',
     }
   );
@@ -225,6 +228,7 @@ export const getStaticProps: GetStaticProps = async ({ params }) => {
       nextPost: nextPost?.results[0] || null,
       prevPost: prevPost?.results[0] || null,
       wasEdited,
+      preview,
     },
     revalidate: 60 * 5, // 5 minutes
   };
